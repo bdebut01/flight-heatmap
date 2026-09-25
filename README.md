@@ -14,6 +14,9 @@ Data: US DOT Bureau of Transportation Statistics.
 
 Hawaiian is merged into Alaska. Guam, Saipan and American Samoa are left off.
 
+BTS data is a US government work in the public domain. The basemap is derived from us-atlas,
+© Mike Bostock, [ISC license](https://github.com/topojson/us-atlas/blob/master/LICENSE), itself built from US Census Bureau cartographic boundaries.
+
 ## Commands
 
 ```bash
