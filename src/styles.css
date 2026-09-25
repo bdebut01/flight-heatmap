@@ -214,6 +214,10 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; a
 .bars { height: 44px; display: flex; gap: 2px; align-items: flex-end; border-bottom: 1px solid var(--line); }
 .bars div { flex: 1; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--bar); cursor: pointer; }
 .bars div.on { background: var(--accent); }
+.bars div.hover { background: color-mix(in srgb, var(--bar), var(--ink) 30%); }
+.bars div.on.hover { background: color-mix(in srgb, var(--accent), var(--ink) 20%); }
+.bar-tip { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 4; padding: 3px 8px; border-radius: 6px; background: var(--ink); color: var(--panel); font-size: 12px; white-space: nowrap; pointer-events: none; }
+.bar-tip[hidden] { display: none; }
 .ticks { position: relative; height: 16px; font-size: 11px; color: var(--mute); }
 .ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 /* the input runs from the first bar's centre to the last's, so the thumb sits on the chosen bar */
