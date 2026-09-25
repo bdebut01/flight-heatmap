@@ -159,8 +159,11 @@ async function boot() {
     // share of everything flown this month (from this origin, in the route view), so size isn't lost
     const all = seriesAll[state.month], share = all > 0 ? total / all : 0
     const pct = share >= 0.9995 ? '100%' : share > 0 && share < 0.001 ? '<0.1%' : `${(share * 100).toFixed(1)}%`
+    const days = new Date(+ym.slice(0, 4), +ym.slice(5), 0).getDate()   // day 0 of next month = last day of this one
+    const perDay = total / days
     const stats: [string, string][] = [
       [fmt(total), unit()],
+      ...(rm ? [[perDay >= 10 ? fmt(perDay) : perDay.toFixed(1), `${unit()} a day`] as [string, string]] : []),
       [pct, rm ? `of ${originLabel()} ${unit()}` : `of all ${unit()}`],
       [fmt(served), rm ? 'destinations' : `${state.grouping} served`],
       [String(nOn), nOn === 1 ? 'airline on' : 'airlines on'],
