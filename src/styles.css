@@ -101,8 +101,9 @@ h1 { margin: 0; font-size: 20px; font-weight: 600; }
 
 .group-head[hidden] { display: none; }
 .group-head { display: flex; align-items: center; gap: 4px; min-height: 44px; border-top: 1px solid var(--line); }
-.group-head label { flex: 1; display: flex; gap: 10px; align-items: center; min-height: 44px; cursor: pointer; min-width: 0; }
-.group-names { display: flex; flex-direction: column; min-width: 0; }
+.group-head { cursor: pointer; }
+.group-check { display: flex; align-items: center; min-height: 44px; padding-right: 10px; cursor: pointer; }
+.group-names { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .group-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .group-state { font-size: 11px; color: var(--mute); white-space: nowrap; }
 .group-total { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }

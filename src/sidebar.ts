@@ -29,16 +29,16 @@ export class Sidebar {
       if (!members.length) continue
       const id = `grp-${g}`
       const head = el('div', { class: 'group-head' })
-      const lab = el('label')
+      const check = el('label', { class: 'group-check' })   // only the checkbox toggles the group's airlines
       const box = el('input', { type: 'checkbox' }) as HTMLInputElement
       const state = el('span', { class: 'group-state' })
       const names = el('span', { class: 'group-names' })
       names.append(el('span', { class: 'group-name' }, name), state)
-      lab.append(box, names)
+      check.append(box, el('span', { class: 'vh' }, `All ${name}`))
       const total = el('span', { class: 'group-total' })
       const expand = el('button', { type: 'button', class: 'expand', 'aria-controls': id, 'aria-label': `Show ${name}` }) as HTMLButtonElement
       expand.innerHTML = CHEVRON
-      head.append(lab, total, expand)
+      head.append(check, names, total, expand)
       const body = el('div', { class: 'group-body', id })
       const rows: Row[] = members.map(({ b, i }) => {
         const label = el('label', { class: 'row' }) as HTMLLabelElement
@@ -53,7 +53,11 @@ export class Sidebar {
         return { b: i, label, box: rbox, meter, none, val, spark, search: `${b.n} ${b.c}`.toLowerCase() }
       })
       box.addEventListener('change', () => h.toggle(rows.filter(r => this.shows(r)).map(r => r.b), box.checked))
-      expand.addEventListener('click', () => { this.expanded[g] = !this.expanded[g]; this.layout() })
+      // the rest of the header (name, count, total, chevron) opens and closes the group
+      head.addEventListener('click', e => {
+        if ((e.target as HTMLElement).closest('.group-check')) return
+        this.expanded[g] = !this.expanded[g]; this.layout()
+      })
       root.append(head, body)
       this.groups.push({ g, head, box, state, total, expand, body, rows })
     }
