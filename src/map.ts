@@ -77,15 +77,15 @@ export class MapView {
     this.view()
   }
 
-  render(places: Place[], field: Field, ref: Field, theme: 'light' | 'dark', alt: string) {
+  render(places: Place[], field: Field, theme: 'light' | 'dark', alt: string) {
     this.places = places; this.origin = null
     this.canvas.hidden = false; this.arcs.replaceChildren()
-    this.heat.draw(field, ref, theme)
+    this.heat.draw(field, theme)
     this.canvas.setAttribute('aria-label', alt)
     this.paintHeat(); this.drawDots(); this.refreshCard()
   }
 
-  /** Route lines from one origin; `max` sets the scale (Fixed: all airlines, Fit: the selection). */
+  /** Route lines from one origin; line weight is relative to `max`, the busiest route shown. */
   renderRoutes(origin: Anchor, dests: Place[], max: number, theme: 'light' | 'dark', alt: string) {
     this.places = dests; this.origin = origin
     this.canvas.hidden = true

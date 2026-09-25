@@ -5,7 +5,6 @@ import '@fontsource/ibm-plex-sans/latin-600.css'
 import '@fontsource/ibm-plex-mono/latin-400.css'
 import '@fontsource/ibm-plex-mono/latin-500.css'
 import { loadBase, type Measure } from './data'
-import type { Field } from './heat'
 import { MapView, type Place, type TipContent } from './map'
 import { OriginPicker, type Origin } from './origin'
 import { Routes } from './routes'
@@ -14,7 +13,6 @@ import { Timeline } from './timeline'
 import { $, el, fmt, monthLabel } from './format'
 
 type Grouping = 'airports' | 'cities'
-type Scale = 'fixed' | 'fit'
 
 const store = {
   get(k: string) { try { return localStorage.getItem(k) } catch { return null } },
@@ -29,7 +27,6 @@ async function boot() {
     month: model.M - 1,
     measure: 'flights' as Measure,
     grouping: 'airports' as Grouping,
-    scale: 'fit' as Scale,
     on: new Uint8Array(model.nB).fill(1),
     origin: null as Origin | null,
   }
@@ -106,13 +103,6 @@ async function boot() {
     render()
   })
 
-  // Scale reference for "Fixed": all airlines, same month / measure / grouping.
-  const refCache = new Map<string, Field>()
-  const refField = () => {
-    const k = `${state.month}|${state.measure}|${state.grouping}`
-    if (!refCache.has(k)) refCache.set(k, map.heat.field(heatPlaces(allOn)))
-    return refCache.get(k)!
-  }
   const theme = (): 'light' | 'dark' => {
     const t = document.documentElement.dataset.theme
     return t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'
@@ -129,11 +119,9 @@ async function boot() {
       bt = routes!.brandTotals(o, state.month, state.measure, model.nB)
       const dv = destValues(state.on)
       pl = toPlaces(a => dv.get(a) ?? 0)
-      const dvAll = destValues(allOn)
-      const fixedMax = Math.max(0, ...toPlaces(a => dvAll.get(a) ?? 0).map(p => p.w))
-      const fitMax = Math.max(0, ...pl.map(p => p.w))
+      const max = Math.max(0, ...pl.map(p => p.w))
       const anchor = state.origin!.kind === 'city' ? meta.markets[state.origin!.index] : meta.airports[o[0]]
-      map.renderRoutes({ x: anchor.x!, y: anchor.y!, label: originLabel() }, pl, state.scale === 'fixed' ? fixedMax : fitMax, theme(),
+      map.renderRoutes({ x: anchor.x!, y: anchor.y!, label: originLabel() }, pl, max, theme(),
         `Route map of nonstop flights from ${originLabel()}, ${ml}`)
       // destinations abroad
       const abroad = [...dv].filter(([a, v]) => a >= meta.nUS && v >= 0.5).sort((x, y) => y[1] - x[1])
@@ -145,7 +133,7 @@ async function boot() {
       bt = model.brandTotals(state.month, state.measure)
       pl = heatPlaces(state.on)
       const field = map.heat.field(pl)
-      map.render(pl, field, state.scale === 'fixed' ? refField() : field, theme(),
+      map.render(pl, field, theme(),
         `Heatmap of scheduled passenger ${unit()} from US ${state.grouping}, ${ml}`)
       renderAbroad([])
       series = model.monthlyTotals(state.measure, state.on); seriesAll = model.monthlyTotals(state.measure, allOn)
@@ -159,7 +147,7 @@ async function boot() {
 
     if (sparkMeasure !== state.measure) { sidebar.setSparklines(model.brandSeries(state.measure)); sparkMeasure = state.measure }
     sidebar.update(bt, state.on)
-    timeline.update(state.month, series, Math.max(...(state.scale === 'fixed' ? seriesAll : series)), unit())
+    timeline.update(state.month, series, Math.max(...series), unit())
 
     $('month-label').textContent = ml
     $('eyebrow').textContent = rm ? `Nonstop from ${originLabel()}` : 'Showing'
@@ -168,14 +156,18 @@ async function boot() {
     $('ramp-heat').hidden = rm; $('ramp-arcs').hidden = !rm
     $('ramp-more').textContent = `More ${unit()}`
     $('arcs-more').textContent = state.measure === 'flights' ? 'More flights' : 'More seats'
+    // share of everything flown this month (from this origin, in the route view), so size isn't lost
+    const all = seriesAll[state.month], share = all > 0 ? total / all : 0
+    const pct = share >= 0.9995 ? '100%' : share > 0 && share < 0.001 ? '<0.1%' : `${(share * 100).toFixed(1)}%`
     const stats: [string, string][] = [
       [fmt(total), unit()],
+      [pct, rm ? `of ${originLabel()} ${unit()}` : `of all ${unit()}`],
       [fmt(served), rm ? 'destinations' : `${state.grouping} served`],
-      [String(nOn), 'airlines on'],
+      [String(nOn), nOn === 1 ? 'airline on' : 'airlines on'],
     ]
     $('stats').replaceChildren(...stats.map(([v, l]) => { const d = el('div', { class: 'stat' }); d.append(el('b', {}, v), el('span', {}, l)); return d }))
     document.querySelectorAll<HTMLElement>('.seg[data-key]').forEach(seg => {
-      const cur = String(state[seg.dataset.key as 'measure' | 'grouping' | 'scale'])
+      const cur = String(state[seg.dataset.key as 'measure' | 'grouping'])
       seg.querySelectorAll<HTMLButtonElement>('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === cur)))
     })
   }

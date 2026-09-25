@@ -106,10 +106,10 @@ export class Heat {
     return { a, b, maxA: maxOf(a), maxB: maxOf(b) }
   }
 
-  /** Draw a field; `ref` sets the scale (all airlines for "Fixed", the field itself for "Fit"). */
-  draw(f: Field, ref: Field, theme: 'light' | 'dark') {
+  /** Draw a field, scaled to its own peak so any selection uses the full colour range. */
+  draw(f: Field, theme: 'light' | 'dark') {
     const L = LUTS[theme], d = this.img.data
-    const ia = ref.maxA ? 1 / ref.maxA : 0, ib = ref.maxB ? WEIGHT_B / ref.maxB : 0, norm = 1 / (1 + WEIGHT_B)
+    const ia = f.maxA ? 1 / f.maxA : 0, ib = f.maxB ? WEIGHT_B / f.maxB : 0, norm = 1 / (1 + WEIGHT_B)
     for (let i = 0; i < f.a.length; i++) {
       const v = Math.min(1, (f.a[i] * ia + f.b[i] * ib) * norm)
       const k = (Math.pow(v, 0.45) * 255) | 0
