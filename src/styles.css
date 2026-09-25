@@ -129,6 +129,18 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; a
 .row.off { color: var(--mute); }
 .row.off .meter { opacity: 0.2; }
 .row .none { font-size: 11px; color: var(--mute); }
+.row .slot { display: flex; justify-content: center; align-items: center; }
+.only { display: none; min-height: 26px; padding: 0 10px; border: 1px solid var(--accent); border-radius: 13px; background: var(--panel); color: var(--accent); font-size: 12px; font-weight: 500; white-space: nowrap; cursor: pointer; }
+.only:hover { background: var(--accent-soft); }
+.row:hover, .group-head:hover { background: var(--seg-bg); border-radius: 6px; }
+.row:hover .spark, .row:focus-within .spark { display: none; }
+.row:hover .only, .row:focus-within .only, .group-head:hover .only, .group-head:focus-within .only { display: inline-flex; align-items: center; }
+/* no hover on touch screens: keep a quiet Only on every row */
+@media (hover: none) {
+  .only { display: inline-flex; align-items: center; min-height: 32px; border-color: var(--line); color: var(--ink-2); }
+  .row .spark { display: none; }
+}
+.link[hidden] { display: none; }
 .row .val { font-family: var(--mono); font-size: 12px; text-align: right; color: var(--ink-2); }
 .row svg polyline { stroke: var(--mute); }
 

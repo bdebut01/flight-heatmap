@@ -91,6 +91,7 @@ async function boot() {
   const map = new MapView(meta.W, meta.H, basemap, describe)
   const sidebar = new Sidebar($('groups'), model, {
     toggle(brands, on) { for (const b of brands) state.on[b] = on ? 1 : 0; render() },
+    only(brands) { state.on.fill(0); for (const b of brands) state.on[b] = 1; render() },
   })
   const timeline = new Timeline(meta.months, m => { state.month = m; render() })
 
@@ -154,7 +155,10 @@ async function boot() {
 
     $('month-label').textContent = ml
     $('eyebrow').textContent = rm ? `Nonstop from ${originLabel()}` : 'Showing'
-    $('airlines-count').textContent = rm ? `Airlines · ${nFlying} fly nonstop from ${originLabel()}` : `Airlines · ${nFlying} flying in ${ml}`
+    $('airlines-count').textContent = nOn < nFlying ? `Airlines · ${nOn} of ${nFlying} on`
+      : rm ? `Airlines · ${nFlying} fly nonstop from ${originLabel()}` : `Airlines · ${nFlying} flying in ${ml}`
+    $('all-on').hidden = nOn >= nFlying   // "Show all" only when something is off
+    $('all-off').hidden = nOn === 0
     $('rail-n').textContent = String(nOn)
     $('ramp-heat').hidden = rm; $('ramp-arcs').hidden = !rm
     $('ramp-more').textContent = `More ${unit()}`

@@ -13,6 +13,15 @@ interface GroupUI { g: Group; head: HTMLElement; box: HTMLInputElement; state: H
 
 export interface SidebarHandlers {
   toggle(brands: number[], on: boolean): void
+  /** turn these on and everything else off */
+  only(brands: number[]): void
+}
+
+/** "Only" quick filter: shown on hover or keyboard focus, never toggles the checkbox it sits beside. */
+function onlyButton(label: string, run: () => void) {
+  const b = el('button', { type: 'button', class: 'only', 'aria-label': `Only ${label}` }, 'Only')
+  b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); run() })
+  return b
 }
 
 /** Grouped airline list: group checkbox (all / some / none), expandable rows, search filter. */
@@ -38,7 +47,8 @@ export class Sidebar {
       const total = el('span', { class: 'group-total' })
       const expand = el('button', { type: 'button', class: 'expand', 'aria-controls': id, 'aria-label': `Show ${name}` }) as HTMLButtonElement
       expand.innerHTML = CHEVRON
-      head.append(check, names, total, expand)
+      const onlyGroup = onlyButton(name, () => h.only(rows.filter(r => this.shows(r)).map(r => r.b)))
+      head.append(check, names, onlyGroup, total, expand)
       const body = el('div', { class: 'group-body', id })
       const rows: Row[] = members.map(({ b, i }) => {
         const label = el('label', { class: 'row' }) as HTMLLabelElement
@@ -46,8 +56,10 @@ export class Sidebar {
         const nameCol = el('span', { class: 'name' })
         const meter = el('span', { class: 'meter' }), none = el('span', { class: 'none' }, 'No flights this month')
         nameCol.append(el('span', {}, b.n), meter, none)
-        const spark = el('span'), val = el('span', { class: 'val' })
-        label.append(rbox, nameCol, spark, val)
+        const spark = el('span', { class: 'spark' }), val = el('span', { class: 'val' })
+        const slot = el('span', { class: 'slot' })   // trend line, swapped for the Only button on hover
+        slot.append(spark, onlyButton(b.n, () => h.only([i])))
+        label.append(rbox, nameCol, slot, val)
         rbox.addEventListener('change', () => h.toggle([i], rbox.checked))
         body.append(label)
         return { b: i, label, box: rbox, meter, none, val, spark, search: `${b.n} ${b.c}`.toLowerCase() }
