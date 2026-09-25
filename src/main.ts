@@ -18,6 +18,8 @@ const store = {
   get(k: string) { try { return localStorage.getItem(k) } catch { return null } },
   set(k: string, v: string) { try { localStorage.setItem(k, v) } catch { /* private mode */ } },
 }
+/** days in a YYYY-MM month (day 0 of the next month is the last day of this one) */
+const daysIn = (ym: string) => new Date(+ym.slice(0, 4), +ym.slice(5), 0).getDate()
 const plural = (n: number, word: string) => `${fmt(n)} ${word}${n === 1 ? '' : 's'}`
 
 async function boot() {
@@ -35,6 +37,7 @@ async function boot() {
   const shortCity = (s: string) => s.split(',')[0]
   const unit = () => (state.measure === 'flights' ? 'departures' : 'seats')
   const routeMode = () => !!(state.origin && routes)
+  const perDay = (v: number) => { const d = v / daysIn(meta.months[state.month]); return d >= 10 ? fmt(d) : d.toFixed(1) }
 
   /** Airport values -> map places, grouped into city markets in the Cities view. */
   const toPlaces = (value: (a: number) => number): Place[] => {
@@ -80,7 +83,7 @@ async function boot() {
     const what = routeMode() ? (state.measure === 'flights' ? 'nonstop flights' : 'seats') : unit()
     return {
       title: routeMode() ? `${originLabel()} → ${where}` : where, subtitle, city,
-      total: `${fmt(p.w)} ${what} · ${plural(n, 'airline')}`, rows: rows.slice(0, 4), more: Math.max(0, n - 4),
+      total: `${fmt(p.w)} ${what}${routeMode() ? ` (${perDay(p.w)} a day)` : ''} · ${plural(n, 'airline')}`, rows: rows.slice(0, 4), more: Math.max(0, n - 4),
     }
   }
   const originLabel = () => state.origin!.kind === 'city' ? state.origin!.name.replace(/ area$/, '') : state.origin!.code
@@ -159,11 +162,9 @@ async function boot() {
     // share of everything flown this month (from this origin, in the route view), so size isn't lost
     const all = seriesAll[state.month], share = all > 0 ? total / all : 0
     const pct = share >= 0.9995 ? '100%' : share > 0 && share < 0.001 ? '<0.1%' : `${(share * 100).toFixed(1)}%`
-    const days = new Date(+ym.slice(0, 4), +ym.slice(5), 0).getDate()   // day 0 of next month = last day of this one
-    const perDay = total / days
     const stats: [string, string][] = [
       [fmt(total), unit()],
-      ...(rm ? [[perDay >= 10 ? fmt(perDay) : perDay.toFixed(1), `${unit()} a day`] as [string, string]] : []),
+      ...(rm ? [[perDay(total), `${unit()} a day`] as [string, string]] : []),
       [pct, rm ? `of ${originLabel()} ${unit()}` : `of all ${unit()}`],
       [fmt(served), rm ? 'destinations' : `${state.grouping} served`],
       [String(nOn), nOn === 1 ? 'airline on' : 'airlines on'],
