@@ -10,11 +10,11 @@
 - **Nothing that costs money or deploys unless asked for in the current request.** Asking for a
   diff, an audit or a plan is not asking for it to be executed. Permission for one run does not
   carry to the next.
-- **Commit locally; never push until Ben has tested and says to push.** Passing checks are not
+- **Commit locally; never push until User has tested and says to push.** Passing checks are not
   permission.
 - **Anything a model reads** (prompts, config it is given): paste the exact diff in chat, wait for
   a yes, then deploy. Three separate steps.
-- Stop any dev or preview server you started before replying; Ben runs his own on that port.
+- Stop any dev or preview server you started before replying; User runs his own on that port.
 - Local artifacts (design exports, scratch runs) stay out of the repo.
 
 ## Parallel sessions
@@ -51,7 +51,7 @@
 
 ## UI options: a design workshop
 
-When Ben asks to see options or workshop a screen, make a **Design canvas** on claude.ai, not
+When User asks to see options or workshop a screen, make a **Design canvas** on claude.ai, not
 code: `Artifact` quickstart with intent `design`, then publish with its `type_url` and a title.
 He iterates on it with Claude there.
 
@@ -60,7 +60,7 @@ He iterates on it with Claude there.
 - Build them from the app's real tokens and real data, so the options differ only in layout.
 - A sticky brief beside them: the problem, the constraints, the open questions.
 - Generate the artboards from a script in the scratchpad. Re-read `project/canvas.json` before
-  every republish and send only the files that changed; Ben edits the canvas live.
+  every republish and send only the files that changed; User edits the canvas live.
 - The canvas changes no code. Implement the chosen option afterward and check it at desktop and
   phone widths, light and dark.
 
