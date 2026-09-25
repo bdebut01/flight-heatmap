@@ -1,6 +1,6 @@
-# US flight density
+# Who Flies Where
 
-A heatmap of which airlines serve which US airports. Toggle airlines on and off, scrub by month,
+Which airlines serve which US airports, and where you can fly nonstop from any airport or city. Toggle airlines on and off, scrub by month,
 switch between airports and metro areas, and see the routes flown from any airport or city.
 
 Data: US DOT Bureau of Transportation Statistics.
