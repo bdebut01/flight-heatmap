@@ -1,3 +1,9 @@
+// Self-hosted IBM Plex (SIL OFL), Latin subset: bundled by Vite, no third-party font requests.
+import '@fontsource/ibm-plex-sans/latin-400.css'
+import '@fontsource/ibm-plex-sans/latin-500.css'
+import '@fontsource/ibm-plex-sans/latin-600.css'
+import '@fontsource/ibm-plex-mono/latin-400.css'
+import '@fontsource/ibm-plex-mono/latin-500.css'
 import { loadBase, type Measure } from './data'
 import type { Field } from './heat'
 import { MapView, type Place, type TipContent } from './map'
