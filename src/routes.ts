@@ -1,6 +1,4 @@
-import type { Measure } from './data'
-
-interface RoutesFile { k: [number, number, number][]; f: number[][]; r: number[][] }
+interface RoutesFile { k: [number, number, number][]; f: number[][] }
 
 /** Route (origin, destination) x brand x month, loaded when an origin is first chosen. */
 export class Routes {
@@ -9,7 +7,6 @@ export class Routes {
   private rd: Int32Array
   private rb: Int32Array
   private F: Float64Array
-  private S: Float64Array
   private byOrigin = new Map<number, number[]>()
 
   static async load() {
@@ -22,13 +19,10 @@ export class Routes {
     const n = d.k.length
     this.M = d.f[0]?.length ?? 0
     this.ro = new Int32Array(n); this.rd = new Int32Array(n); this.rb = new Int32Array(n)
-    this.F = new Float64Array(n * this.M); this.S = new Float64Array(n * this.M)
+    this.F = new Float64Array(n * this.M)
     d.k.forEach(([o, dst, b], i) => {
       this.ro[i] = o; this.rd[i] = dst; this.rb[i] = b
-      for (let m = 0; m < this.M; m++) {
-        this.F[i * this.M + m] = d.f[i][m]
-        this.S[i * this.M + m] = d.f[i][m] * d.r[i][m]   // seats = flights x seats per flight
-      }
+      for (let m = 0; m < this.M; m++) this.F[i * this.M + m] = d.f[i][m]
       let list = this.byOrigin.get(o)
       if (!list) this.byOrigin.set(o, (list = []))
       list.push(i)
@@ -38,33 +32,31 @@ export class Routes {
   private *each(origins: number[]) {
     for (const o of origins) for (const i of this.byOrigin.get(o) ?? []) yield i
   }
-  private val(i: number, m: number, measure: Measure) {
-    return (measure === 'flights' ? this.F : this.S)[i * this.M + m]
-  }
+  private val(i: number, m: number) { return this.F[i * this.M + m] }
 
   /** destination airport -> value, enabled brands only */
-  destTotals(origins: number[], m: number, measure: Measure, on: Uint8Array) {
+  destTotals(origins: number[], m: number, on: Uint8Array) {
     const out = new Map<number, number>()
     for (const i of this.each(origins)) {
       if (!on[this.rb[i]]) continue
-      const v = this.val(i, m, measure)
+      const v = this.val(i, m)
       if (v > 0) out.set(this.rd[i], (out.get(this.rd[i]) ?? 0) + v)
     }
     return out
   }
 
   /** brand -> value on the given destinations (all destinations when omitted) */
-  brandTotals(origins: number[], m: number, measure: Measure, nB: number, dests?: Set<number>) {
+  brandTotals(origins: number[], m: number, nB: number, dests?: Set<number>) {
     const out = new Float64Array(nB)
-    for (const i of this.each(origins)) if (!dests || dests.has(this.rd[i])) out[this.rb[i]] += this.val(i, m, measure)
+    for (const i of this.each(origins)) if (!dests || dests.has(this.rd[i])) out[this.rb[i]] += this.val(i, m)
     return out
   }
 
-  monthlyTotals(origins: number[], measure: Measure, on: Uint8Array | null) {
+  monthlyTotals(origins: number[], on: Uint8Array | null) {
     const out = new Float64Array(this.M)
     for (const i of this.each(origins)) {
       if (on && !on[this.rb[i]]) continue
-      for (let m = 0; m < this.M; m++) out[m] += this.val(i, m, measure)
+      for (let m = 0; m < this.M; m++) out[m] += this.val(i, m)
     }
     return out
   }

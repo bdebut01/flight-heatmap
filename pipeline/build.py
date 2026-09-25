@@ -175,12 +175,12 @@ def main():
         sys.exit('no otp_mkt_YYYY_MM.zip files in ' + str(raw))
 
     flights = collections.defaultdict(float)   # (ym, o_id, d_id, brand) -> departures
-    seats = collections.defaultdict(float)
     carrier_name, foreign, cgroup = {}, set(), {}
     fallback_months = set()
     t100 = sorted(raw.glob('t100_segment_all_*.zip'))
     for path in t100:
         for r in open_csv(path):
+            # scheduled passenger service from US airports (class F with seats; zero seats = cargo-only)
             if r['CLASS'] != 'F' or r['ORIGIN_COUNTRY'] != 'US' or float(r['SEATS'] or 0) == 0:
                 continue
             o, d = mc.get(r['ORIGIN_AIRPORT_ID']), mc.get(r['DEST_AIRPORT_ID'])
@@ -197,10 +197,9 @@ def main():
                 fallback_months.add((ym, sm))
             route_s, carrier_s = shares[sm]
             split = route_s.get((c, r['ORIGIN'], r['DEST'])) or carrier_s.get(c) or {c: 1.0}
-            dep, st = float(r['DEPARTURES_PERFORMED'] or 0), float(r['SEATS'] or 0)
+            dep = float(r['DEPARTURES_PERFORMED'] or 0)
             for b, w in split.items():
-                k = (ym, r['ORIGIN_AIRPORT_ID'], r['DEST_AIRPORT_ID'], b)
-                flights[k] += dep * w; seats[k] += st * w
+                flights[(ym, r['ORIGIN_AIRPORT_ID'], r['DEST_AIRPORT_ID'], b)] += dep * w
     for ym, sm in sorted(fallback_months):
         print(f'  WARNING {ym}: no marketing-carrier file, used {sm} shares', file=sys.stderr)
 
@@ -238,25 +237,21 @@ def main():
     bidx = {b: n for n, b in enumerate(blist)}
     brands = [{'c': b, 'n': clean_name(b, carrier_name.get(b, b)), 'g': group(b)} for b in blist]
 
-    # tier 1: origin airport x brand x month (exact flights and seats)
-    s_f = collections.defaultdict(lambda: [0.0] * M); s_s = collections.defaultdict(lambda: [0.0] * M)
+    # tier 1: origin airport x brand x month departures
+    s_f = collections.defaultdict(lambda: [0.0] * M)
     for (ym, o, d, b), v in flights.items():
         if b in bidx:
-            s_f[(aidx[o], bidx[b])][mi[ym]] += v; s_s[(aidx[o], bidx[b])][mi[ym]] += seats[(ym, o, d, b)]
+            s_f[(aidx[o], bidx[b])][mi[ym]] += v
     skeys = sorted(k for k in s_f if round(sum(s_f[k])) >= 1)
-    summary = {'k': [list(k) for k in skeys],
-               'f': [[round(v) for v in s_f[k]] for k in skeys],
-               's': [[round(v) for v in s_s[k]] for k in skeys]}
+    summary = {'k': [list(k) for k in skeys], 'f': [[round(v) for v in s_f[k]] for k in skeys]}
 
-    # tier 2: route x brand x month; seats as seats per flight
-    r_f = collections.defaultdict(lambda: [0.0] * M); r_s = collections.defaultdict(lambda: [0.0] * M)
+    # tier 2: route x brand x month departures
+    r_f = collections.defaultdict(lambda: [0.0] * M)
     for (ym, o, d, b), v in flights.items():
         if b in bidx:
-            k = (aidx[o], aidx[d], bidx[b]); r_f[k][mi[ym]] += v; r_s[k][mi[ym]] += seats[(ym, o, d, b)]
+            r_f[(aidx[o], aidx[d], bidx[b])][mi[ym]] += v
     rkeys = sorted(k for k in r_f if any(round(v) >= 1 for v in r_f[k]))
-    routes = {'k': [list(k) for k in rkeys],
-              'f': [[round(v) for v in r_f[k]] for k in rkeys],
-              'r': [[round(r_s[k][m] / r_f[k][m]) if r_f[k][m] >= 0.5 else 0 for m in range(M)] for k in rkeys]}
+    routes = {'k': [list(k) for k in rkeys], 'f': [[round(v) for v in r_f[k]] for k in rkeys]}
 
     meta = {'months': months, 'W': W, 'H': H, 'nUS': len(us_ids), 'airports': airports, 'markets': markets, 'brands': brands,
             'source': 'BTS T-100 Segment (All Carriers); regional flights credited to the selling brand using BTS Marketing Carrier On-Time data'}

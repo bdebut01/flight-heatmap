@@ -4,7 +4,7 @@ import '@fontsource/ibm-plex-sans/latin-500.css'
 import '@fontsource/ibm-plex-sans/latin-600.css'
 import '@fontsource/ibm-plex-mono/latin-400.css'
 import '@fontsource/ibm-plex-mono/latin-500.css'
-import { loadBase, type Measure } from './data'
+import { loadBase } from './data'
 import { MapView, type Place, type TipContent } from './map'
 import { OriginPicker, type Origin } from './origin'
 import { Routes } from './routes'
@@ -27,7 +27,6 @@ async function boot() {
   const { meta } = model
   const state = {
     month: model.M - 1,
-    measure: 'flights' as Measure,
     grouping: 'airports' as Grouping,
     on: new Uint8Array(model.nB).fill(1),
     origin: null as Origin | null,
@@ -35,7 +34,6 @@ async function boot() {
   let routes: Routes | null = null
   const allOn = new Uint8Array(model.nB).fill(1)
   const shortCity = (s: string) => s.split(',')[0]
-  const unit = () => (state.measure === 'flights' ? 'departures' : 'seats')
   const routeMode = () => !!(state.origin && routes)
   const perDay = (v: number) => { const d = v / daysIn(meta.months[state.month]); return d >= 10 ? fmt(d) : d.toFixed(1) }
 
@@ -49,10 +47,10 @@ async function boot() {
     return meta.markets.map((mk, i) => ({ key: i, x: mk.x, y: mk.y, w: w[i], label: shortCity(mk.n) }))
   }
   const heatPlaces = (on: Uint8Array) => {
-    const tot = model.airportTotals(state.month, state.measure, on)
+    const tot = model.airportTotals(state.month, on)
     return toPlaces(a => tot[a])
   }
-  const destValues = (on: Uint8Array) => routes!.destTotals(state.origin!.airports, state.month, state.measure, on)
+  const destValues = (on: Uint8Array) => routes!.destTotals(state.origin!.airports, state.month, on)
 
   /** airports behind a place, busiest first */
   const membersOf = (p: Place, value: (a: number) => number) => state.grouping === 'airports' ? [p.key]
@@ -67,12 +65,12 @@ async function boot() {
     if (routeMode()) {
       const dv = destValues(state.on)
       members = membersOf(p, a => dv.get(a) ?? 0)
-      rows = rowsFrom(routes!.brandTotals(state.origin!.airports, state.month, state.measure, model.nB, new Set(members)))
+      rows = rowsFrom(routes!.brandTotals(state.origin!.airports, state.month, model.nB, new Set(members)))
     } else {
-      const tot = model.airportTotals(state.month, state.measure, state.on)
+      const tot = model.airportTotals(state.month, state.on)
       members = membersOf(p, a => tot[a])
       const v = new Float64Array(model.nB)
-      for (const a of members) for (const q of model.byAirport[a]) v[model.brandOf(q)] += model.value(q, state.month, state.measure)
+      for (const a of members) for (const q of model.byAirport[a]) v[model.brandOf(q)] += model.value(q, state.month)
       rows = rowsFrom(v)
     }
     const n = rows.length
@@ -80,7 +78,7 @@ async function boot() {
     const where = city ? shortCity(meta.markets[p.key].n) : meta.airports[p.key].c
     const subtitle = city ? (codes.length > 1 ? codes.slice(0, 4).join(' · ') + (codes.length > 4 ? ` +${codes.length - 4}` : '') : meta.markets[p.key].n)
       : meta.airports[p.key].ci
-    const what = routeMode() ? (state.measure === 'flights' ? 'nonstop flights' : 'seats') : unit()
+    const what = routeMode() ? 'nonstop flights' : 'departures'
     return {
       title: routeMode() ? `${originLabel()} → ${where}` : where, subtitle, city,
       total: `${fmt(p.w)} ${what}${routeMode() ? ` (${perDay(p.w)} a day)` : ''} · ${plural(n, 'airline')}`, rows: rows.slice(0, 4), more: Math.max(0, n - 4),
@@ -93,11 +91,12 @@ async function boot() {
     toggle(brands, on) { for (const b of brands) state.on[b] = on ? 1 : 0; render() },
     only(brands) { state.on.fill(0); for (const b of brands) state.on[b] = 1; render() },
   })
+  sidebar.setSparklines(model.brandSeries())
   const timeline = new Timeline(meta.months, m => { state.month = m; render() })
 
   // total departures per airport over all months, to rank the origin search
   const traffic = new Float64Array(model.nA)
-  for (let m = 0; m < model.M; m++) model.airportTotals(m, 'flights', allOn).forEach((v, a) => (traffic[a] += v))
+  for (let m = 0; m < model.M; m++) model.airportTotals(m, allOn).forEach((v, a) => (traffic[a] += v))
   new OriginPicker(meta, traffic, `${monthLabel(meta.months[0])} – ${monthLabel(meta.months[model.M - 1])}`, async o => {
     state.origin = o
     if (o && !routes) {
@@ -112,7 +111,6 @@ async function boot() {
     return t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'
   }
 
-  let sparkMeasure: Measure | null = null
   function render() {
     const ym = meta.months[state.month], ml = monthLabel(ym)
     const rm = routeMode()
@@ -120,7 +118,7 @@ async function boot() {
 
     if (rm) {
       const o = state.origin!.airports
-      bt = routes!.brandTotals(o, state.month, state.measure, model.nB)
+      bt = routes!.brandTotals(o, state.month, model.nB)
       const dv = destValues(state.on)
       pl = toPlaces(a => dv.get(a) ?? 0)
       const max = Math.max(0, ...pl.map(p => p.w))
@@ -131,16 +129,16 @@ async function boot() {
       const abroad = [...dv].filter(([a, v]) => a >= meta.nUS && v >= 0.5).sort((x, y) => y[1] - x[1])
       extraDest = abroad.length
       renderAbroad(abroad)
-      series = routes!.monthlyTotals(o, state.measure, state.on); seriesAll = routes!.monthlyTotals(o, state.measure, null)
+      series = routes!.monthlyTotals(o, state.on); seriesAll = routes!.monthlyTotals(o, null)
       sidebar.setVisible(routes!.brandsServing(o, model.nB))
     } else {
-      bt = model.brandTotals(state.month, state.measure)
+      bt = model.brandTotals(state.month)
       pl = heatPlaces(state.on)
       const field = map.heat.field(pl)
       map.render(pl, field, theme(),
-        `Heatmap of scheduled passenger ${unit()} from US ${state.grouping}, ${ml}`)
+        `Heatmap of scheduled passenger departures from US ${state.grouping}, ${ml}`)
       renderAbroad([])
-      series = model.monthlyTotals(state.measure, state.on); seriesAll = model.monthlyTotals(state.measure, allOn)
+      series = model.monthlyTotals(state.on); seriesAll = model.monthlyTotals(allOn)
       sidebar.setVisible(null)
     }
 
@@ -149,9 +147,8 @@ async function boot() {
     const total = pl.reduce((s, p) => s + p.w, 0) + (rm ? [...destValues(state.on)].filter(([a]) => a >= meta.nUS).reduce((s, [, v]) => s + v, 0) : 0)
     const served = pl.filter(p => p.w >= 0.5).length + extraDest
 
-    if (sparkMeasure !== state.measure) { sidebar.setSparklines(model.brandSeries(state.measure)); sparkMeasure = state.measure }
     sidebar.update(bt, state.on)
-    timeline.update(state.month, series, Math.max(...series), unit())
+    timeline.update(state.month, series, Math.max(...series), 'departures')
 
     $('month-label').textContent = ml
     $('eyebrow').textContent = rm ? `Nonstop from ${originLabel()}` : 'Showing'
@@ -161,21 +158,19 @@ async function boot() {
     $('all-off').hidden = nOn === 0
     $('rail-n').textContent = String(nOn)
     $('ramp-heat').hidden = rm; $('ramp-arcs').hidden = !rm
-    $('ramp-more').textContent = `More ${unit()}`
-    $('arcs-more').textContent = state.measure === 'flights' ? 'More flights' : 'More seats'
     // share of everything flown this month (from this origin, in the route view), so size isn't lost
     const all = seriesAll[state.month], share = all > 0 ? total / all : 0
     const pct = share >= 0.9995 ? '100%' : share > 0 && share < 0.001 ? '<0.1%' : `${(share * 100).toFixed(1)}%`
     const stats: [string, string][] = [
-      [fmt(total), unit()],
-      ...(rm ? [[perDay(total), `${unit()} a day`] as [string, string]] : []),
-      [pct, rm ? `of ${originLabel()} ${unit()}` : `of all ${unit()}`],
+      [fmt(total), 'departures'],
+      ...(rm ? [[perDay(total), 'departures a day'] as [string, string]] : []),
+      [pct, rm ? `of ${originLabel()} departures` : 'of all departures'],
       [fmt(served), rm ? 'destinations' : `${state.grouping} served`],
       [String(nOn), nOn === 1 ? 'airline on' : 'airlines on'],
     ]
     $('stats').replaceChildren(...stats.map(([v, l]) => { const d = el('div', { class: 'stat' }); d.append(el('b', {}, v), el('span', {}, l)); return d }))
     document.querySelectorAll<HTMLElement>('.seg[data-key]').forEach(seg => {
-      const cur = String(state[seg.dataset.key as 'measure' | 'grouping'])
+      const cur = String(state[seg.dataset.key as 'grouping'])
       seg.querySelectorAll<HTMLButtonElement>('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === cur)))
     })
   }

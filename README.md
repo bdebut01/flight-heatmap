@@ -1,7 +1,7 @@
 # US flight density
 
 A heatmap of which airlines serve which US airports. Toggle airlines on and off, scrub by month,
-switch between flights and seats, and between airports and metro areas.
+switch between airports and metro areas, and see the routes flown from any airport or city.
 
 Data: US DOT Bureau of Transportation Statistics.
 
@@ -43,6 +43,6 @@ prints a warning when that happens.
 | File | Contents | Loaded |
 |---|---|---|
 | `meta.json` | months, airports (pre-projected x/y), city markets, airlines and their groups | at start |
-| `summary.json` | origin airport × airline: monthly flights and seats | at start |
+| `summary.json` | origin airport × airline: monthly departures | at start |
 | `basemap.json` | state outlines as one pre-projected SVG path | at start |
-| `routes.json` | route × airline: monthly flights and seats per flight | by the origin view |
+| `routes.json` | route × airline: monthly departures | by the origin view |
