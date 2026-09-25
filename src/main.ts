@@ -219,7 +219,11 @@ async function boot() {
     store.set('sidebar', open ? 'open' : 'closed')
     requestAnimationFrame(() => map.fit())
   }
-  $('hide-side').addEventListener('click', () => setSidebar(app.dataset.sidebar !== 'open'))
+  $('hide-side').addEventListener('click', () => {
+    const open = app.dataset.sidebar !== 'open'
+    setSidebar(open)
+    if (!open && !matchMedia('(max-width: 820px)').matches) $('show-side').focus()   // the hide button is going away
+  })
   $('show-side').addEventListener('click', () => { setSidebar(true); $('hide-side').focus() })
   setSidebar(store.get('sidebar') !== 'closed')
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render)

@@ -46,15 +46,23 @@ button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- layout ---------- */
-.app { display: grid; grid-template-columns: 360px minmax(0, 1fr); height: 100vh; }
+/* The side column slides between 360px (sidebar) and 64px (rail); the sidebar keeps its full width
+   inside the clipped column so nothing reflows mid-slide, and the two cross-fade. */
+.app { display: grid; grid-template-columns: 360px minmax(0, 1fr); height: 100vh; transition: grid-template-columns 0.28s cubic-bezier(0.2, 0, 0, 1); }
 .app[data-sidebar="closed"] { grid-template-columns: 64px minmax(0, 1fr); }
-.app[data-sidebar="closed"] .sidebar { display: none; }
-.app[data-sidebar="open"] .rail { display: none; }
+.side { position: relative; overflow: hidden; background: var(--panel); border-right: 1px solid var(--line); }
+.side > .sidebar { position: absolute; inset: 0 auto 0 0; width: 360px; transition: opacity 0.2s 0.06s, visibility 0s; }
+.side > .rail { position: absolute; inset: 0 auto 0 0; width: 64px; opacity: 0; visibility: hidden; transition: opacity 0.16s, visibility 0s 0.16s; }
+.app[data-sidebar="closed"] .side > .sidebar { opacity: 0; visibility: hidden; transition: opacity 0.14s, visibility 0s 0.14s; }
+.app[data-sidebar="closed"] .side > .rail { opacity: 1; visibility: visible; transition: opacity 0.2s 0.1s, visibility 0s; }
+@media (prefers-reduced-motion: reduce) {
+  .app, .side > .sidebar, .side > .rail { transition: none !important; }
+}
 .loading { position: fixed; inset: 0; margin: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--ink-2); }
 .loading[hidden] { display: none; }
 
 /* ---------- sidebar ---------- */
-.sidebar { background: var(--panel); border-right: 1px solid var(--line); padding: 28px 24px 20px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
+.sidebar { background: var(--panel); padding: 28px 24px 20px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
 .side-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 h1 { margin: 0; font-size: 20px; font-weight: 600; }
 .sub { margin: 4px 0 0; font-size: 13px; color: var(--ink-2); }
@@ -125,7 +133,7 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; a
 .row svg polyline { stroke: var(--mute); }
 
 /* ---------- rail ---------- */
-.rail { background: var(--panel); border-right: 1px solid var(--line); padding: 28px 12px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.rail { background: var(--panel); padding: 28px 12px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .rail-count { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--ink-2); text-align: center; }
 .rail-count b { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--ink); }
 
@@ -220,8 +228,9 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; a
   .wide-only { display: none; }
   .app, .app[data-sidebar="closed"] { display: flex; flex-direction: column; height: auto; min-height: 100vh; }
   .main { order: 1; padding: 16px; gap: 12px; }
-  .sidebar { order: 2; border-right: 0; border-top: 1px solid var(--line); padding: 20px 16px; overflow: visible; }
-  .app[data-sidebar="closed"] .sidebar { display: flex; }
+  .side { order: 2; overflow: visible; border-right: 0; border-top: 1px solid var(--line); }
+  .side > .sidebar, .app[data-sidebar="closed"] .side > .sidebar { position: static; width: auto; opacity: 1; visibility: visible; transition: none; }
+  .sidebar { padding: 20px 16px; overflow: visible; }
   .app[data-sidebar="closed"] .sidebar > :not(.side-head) { display: none; }
   .rail { display: none !important; }
   .main-head { align-items: flex-start; }
