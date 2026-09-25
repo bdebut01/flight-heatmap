@@ -1,0 +1,7 @@
+# raw BTS downloads (about 1.5 GB) stay local
+data/raw
+
+node_modules/
+dist/
+.DS_Store
+__pycache__/
