@@ -6,9 +6,10 @@ export interface Point { x: number; y: number; w: number }
 export interface Field { a: Float32Array; b: Float32Array; maxA: number; maxB: number }
 
 const SCALE = 0.5            // raster is half the projected map size
-const SIGMA_A = 12 * SCALE   // "medium" spread, as chosen on the design canvas
-const SIGMA_B = 48 * SCALE
-const WEIGHT_B = 0.55
+// Spread: between "tight" (7, no glow) and "medium" (12 + 48 at 0.55) from the design canvas, nearer tight.
+const SIGMA_A = 9 * SCALE    // sharp layer: individual airports
+const SIGMA_B = 30 * SCALE   // wide layer: faint regional glow
+const WEIGHT_B = 0.3
 
 // Sequential blue, light surface: near-zero recedes toward the surface.
 const RAMP_LIGHT = ['#cde2fb', '#b7d3f6', '#9ec5f4', '#86b6ef', '#6da7ec', '#5598e7', '#3987e5', '#2a78d6', '#256abf', '#1c5cab', '#184f95', '#104281', '#0d366b']
