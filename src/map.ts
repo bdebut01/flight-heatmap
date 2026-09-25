@@ -3,13 +3,19 @@ import { $, el, fmt, svgEl } from './format'
 
 export interface Place extends Point { key: number; label: string }
 export interface Anchor { x: number; y: number; label: string }
-export interface TipContent { title: string; subtitle: string; city?: boolean; total: string; rows: [string, number][]; more: number }
+export interface TipContent {
+  title: string; subtitle: string; city?: boolean; total: string; rows: [string, number][]; more: number
+  /** "Show flights from X": a button on the pinned card, a hint while hovering */
+  jump?: { label: string; run: () => void }
+}
 
 const LABELS = 12          // label the busiest visible places, skipping collisions
 const HIT_PX = 16          // hover / click radius in screen pixels
 const ZOOM_STEP = 1.6
 const ZOOM_MAX = 8
 const DRAG_PX = 4          // movement that turns a click into a pan
+const PLANE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 22h20"></path><path d="M6.36 17.4 4 17l-2-4 1.1-.55a2 2 0 0 1 1.8 0l.17.1a2 2 0 0 0 1.8 0L8 12 5 6l.9-.45a2 2 0 0 1 2.09.2l4.02 3a2 2 0 0 0 2.1.2l4.19-2.06a2.41 2.41 0 0 1 1.73-.17L21 7a1.4 1.4 0 0 1 .87 1.99l-.38.76c-.23.46-.6.84-1.07 1.08L7.58 17.2a2 2 0 0 1-1.22.18Z"></path></svg>'
+const ARROW = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>'
 
 /**
  * Basemap (SVG), heat (canvas), route lines, dots, labels and the detail card.
@@ -183,7 +189,7 @@ export class MapView {
     }
     return best
   }
-  private onControl(e: Event) { return !!(e.target as HTMLElement).closest('.zoom') }
+  private onControl(e: Event) { return !!(e.target as HTMLElement).closest('.zoom, .tooltip') }
 
   private down(e: PointerEvent) {
     if (this.onControl(e) || e.button !== 0) return
@@ -210,8 +216,10 @@ export class MapView {
   // ---------------------------------------------------------------- detail card
 
   private show(p: Place | null) {
-    this.tip.classList.toggle('pinned', this.pinned && !!p)
-    if (p?.key === this.shown?.key && p?.x === this.shown?.x) return
+    const pinnedNow = this.pinned && !!p
+    const same = p?.key === this.shown?.key && p?.x === this.shown?.x
+    this.tip.classList.toggle('pinned', pinnedNow)
+    if (same && this.tip.dataset.pinned === String(pinnedNow)) return   // refill when a hovered card gets pinned
     this.shown = p
     this.drawDots()
     if (!p) { this.tip.hidden = true; return }
@@ -240,6 +248,18 @@ export class MapView {
     }
     this.tip.replaceChildren(title, el('div', { class: 'tt-total' }, c.total), rows)
     if (c.more > 0) this.tip.append(el('div', { class: 'tt-more' }, `+ ${c.more} more airline${c.more === 1 ? '' : 's'}`))
+    if (c.jump && this.pinned) {
+      const b = el('button', { type: 'button', class: 'tt-jump' })
+      b.innerHTML = PLANE
+      b.append(el('span', {}, `Show flights from ${c.jump.label}`))
+      b.insertAdjacentHTML('beforeend', ARROW)
+      const run = c.jump.run
+      b.addEventListener('click', () => { this.unpin(); run() })
+      this.tip.append(b)
+    } else if (c.jump) {
+      this.tip.append(el('div', { class: 'tt-hint' }, `Click to pin, then show flights from ${c.jump.label}`))
+    }
+    this.tip.dataset.pinned = String(this.pinned)
     this.tip.hidden = false
     this.placeCard()
   }

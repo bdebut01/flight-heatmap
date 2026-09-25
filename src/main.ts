@@ -82,8 +82,16 @@ async function boot() {
     return {
       title: routeMode() ? `${originLabel()} → ${where}` : where, subtitle, city,
       total: `${fmt(p.w)} ${what}${routeMode() ? ` (${perDay(p.w)} a day)` : ''} · ${plural(n, 'airline')}`, rows: rows.slice(0, 4), more: Math.max(0, n - 4),
+      jump: jumpFrom(city ? 'city' : 'airport', p.key, members[0] ?? p.key),
     }
   }
+  /** "Show flights from X" for a card: makes that airport or city the origin (skipped if it already is). */
+  const jumpFrom = (kind: 'airport' | 'city', index: number, busiest: number): TipContent['jump'] => {
+    const o = picker?.find(kind, index, busiest)
+    if (!o || (state.origin && o.kind === state.origin.kind && o.index === state.origin.index)) return undefined
+    return { label: o.kind === 'city' ? o.name.replace(/ area$/, '') : o.code, run: () => picker.set(o) }
+  }
+  let picker: OriginPicker   // assigned below; cards only use it after start-up
   const originLabel = () => state.origin!.kind === 'city' ? state.origin!.name.replace(/ area$/, '') : state.origin!.code
 
   const map = new MapView(meta.W, meta.H, basemap, describe)
@@ -97,7 +105,7 @@ async function boot() {
   // total departures per airport over all months, to rank the origin search
   const traffic = new Float64Array(model.nA)
   for (let m = 0; m < model.M; m++) model.airportTotals(m, allOn).forEach((v, a) => (traffic[a] += v))
-  new OriginPicker(meta, traffic, `${monthLabel(meta.months[0])} – ${monthLabel(meta.months[model.M - 1])}`, async o => {
+  picker = new OriginPicker(meta, traffic, `${monthLabel(meta.months[0])} – ${monthLabel(meta.months[model.M - 1])}`, async o => {
     state.origin = o
     if (o && !routes) {
       $('eyebrow').textContent = 'Loading routes…'

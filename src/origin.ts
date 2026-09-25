@@ -46,6 +46,12 @@ export class OriginPicker {
     $('from-clear').addEventListener('click', () => { this.set(null); this.input.focus() })
   }
 
+  /** The origin for an airport or a metro area; a metro without two real airports falls back to its busiest one. */
+  find(kind: 'airport' | 'city', index: number, fallbackAirport: number): Origin | null {
+    return this.all.find(o => o.kind === kind && o.index === index)
+      ?? this.all.find(o => o.kind === 'airport' && o.index === fallbackAirport) ?? null
+  }
+
   set(o: Origin | null) {
     this.box.hidden = !!o; this.chosen.hidden = !o
     if (o) {
