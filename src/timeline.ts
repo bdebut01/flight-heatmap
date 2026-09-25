@@ -10,6 +10,7 @@ export class Timeline {
   constructor(private months: string[], private onMonth: (m: number) => void) {
     const n = months.length
     this.range.max = String(n - 1)
+    $('bars').parentElement!.style.setProperty('--n', String(n))
     this.range.addEventListener('input', () => { this.stop(); onMonth(+this.range.value) })
     this.play.addEventListener('click', () => (this.timer ? this.stop() : this.start()))
     const ticks = $('ticks')

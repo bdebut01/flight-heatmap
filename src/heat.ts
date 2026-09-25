@@ -81,13 +81,15 @@ const maxOf = (a: Float32Array) => { let m = 0; for (let i = 0; i < a.length; i+
 export class Heat {
   readonly w: number
   readonly h: number
+  /** offscreen raster; the map paints the visible part of it at the current zoom */
+  readonly raster = document.createElement('canvas')
   private ctx: CanvasRenderingContext2D
   private img: ImageData
 
-  constructor(canvas: HTMLCanvasElement, W: number, H: number) {
+  constructor(W: number, H: number) {
     this.w = Math.round(W * SCALE); this.h = Math.round(H * SCALE)
-    canvas.width = this.w; canvas.height = this.h
-    this.ctx = canvas.getContext('2d')!
+    this.raster.width = this.w; this.raster.height = this.h
+    this.ctx = this.raster.getContext('2d')!
     this.img = this.ctx.createImageData(this.w, this.h)
   }
 

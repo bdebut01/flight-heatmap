@@ -129,7 +129,7 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; a
 .rail-count b { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--ink); }
 
 /* ---------- main ---------- */
-.main { min-width: 0; min-height: 0; padding: 24px 40px; display: flex; flex-direction: column; gap: 14px; }
+.main { min-width: 0; min-height: 0; overflow-y: auto; padding: 24px 40px; display: flex; flex-direction: column; gap: 14px; }
 .main-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
 .month-block { display: flex; flex-direction: column; gap: 2px; }
 .eyebrow { font-size: 12px; color: var(--ink-2); }
@@ -144,13 +144,15 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; a
 .stat b { font-family: var(--mono); font-size: 20px; font-weight: 500; }
 .stat span { font-size: 12px; color: var(--ink-2); }
 
-.map-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.map-wrap { flex: 1; min-height: 320px;   /* short windows scroll instead of shrinking the map away */ display: flex; align-items: center; justify-content: center; }
 .map { position: relative; background: var(--map); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; touch-action: manipulation; }
 .map > svg, .map > canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.basemap path { fill: var(--land); stroke: var(--border); stroke-width: 2; stroke-linejoin: round; }
+.basemap path { fill: var(--land); stroke: var(--border); stroke-width: 0.9; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.map.zoomed { cursor: grab; touch-action: none; }   /* zoomed: drags pan the map, not the page */
+.map.zoomed:active { cursor: grabbing; }
 .dots circle { fill: var(--dot); }
-.arcs path { fill: none; stroke-linecap: round; }
-.dots .origin { fill: var(--ink); stroke: var(--panel); stroke-width: 5; }
+.arcs path { fill: none; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.dots .origin { fill: var(--ink); stroke: var(--panel); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
 .labels span.origin-label { background: var(--ink); color: var(--panel); transform: translate(-50%, -150%); padding: 1px 6px; font-size: 12px; }
 .ramp-block[hidden] { display: none; }
 .ramp-block svg path { fill: none; stroke-linecap: round; }
@@ -162,12 +164,18 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; a
 .chip { display: flex; gap: 6px; align-items: baseline; padding: 4px 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); white-space: nowrap; }
 .chip b { font-family: var(--mono); font-weight: 500; }
 .chip span:last-child { font-family: var(--mono); color: var(--ink-2); }
-.dots .ring { fill: none; stroke: var(--ink); stroke-width: 4; }
+.dots .ring { fill: none; stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .labels { position: absolute; inset: 0; pointer-events: none; }
 .labels span { position: absolute; transform: translate(6px, -50%); font-family: var(--mono); font-size: 11px; font-weight: 500; background: var(--label-bg); padding: 0 3px; border-radius: 3px; white-space: nowrap; }
 
 .tooltip { position: absolute; z-index: 2; width: 260px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); pointer-events: none; }
 .tooltip[hidden] { display: none; }
+.tooltip.pinned { border-color: var(--ink-2); }
+.zoom { position: absolute; right: 12px; bottom: 12px; z-index: 3; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; }
+.zoom button { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--ink); cursor: pointer; }
+.zoom button + button { border-top: 1px solid var(--line); }
+.zoom button:hover:not(:disabled) { background: var(--seg-bg); }
+.zoom button:disabled { color: var(--bar); cursor: default; }
 .tt-title { display: flex; gap: 8px; align-items: baseline; }
 .tt-title b { font-family: var(--mono); font-size: 15px; font-weight: 500; }
 .tt-title.city b { font-family: var(--sans); font-weight: 600; }
@@ -187,13 +195,19 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; a
 .bars div.on { background: var(--accent); }
 .ticks { position: relative; height: 16px; font-size: 11px; color: var(--mute); }
 .ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
-.range { position: absolute; left: 0; right: 0; top: 36px; height: 16px; pointer-events: none; }
+/* the input runs from the first bar's centre to the last's, so the thumb sits on the chosen bar */
+.range {
+  --bw: calc((100% - (var(--n, 18) - 1) * 2px) / var(--n, 18));   /* one bar's width (bars have 2px gaps) */
+  position: absolute; top: 36px; height: 16px; pointer-events: none;
+  left: calc(var(--bw) / 2 - 8px);
+  width: calc((var(--bw) + 2px) * (var(--n, 18) - 1) + 16px);
+}
 /* track stays invisible so short bars show through; only the thumb sits on the baseline */
 .range input { -webkit-appearance: none; appearance: none; width: 100%; height: 16px; margin: 0; background: transparent; pointer-events: auto; cursor: pointer; }
 .range input::-webkit-slider-runnable-track { height: 16px; background: transparent; }
 .range input::-moz-range-track { height: 16px; background: transparent; }
-.range input::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--accent); }
-.range input::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--accent); }
+.range input::-webkit-slider-thumb { -webkit-appearance: none; box-sizing: border-box; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--accent); }
+.range input::-moz-range-thumb { box-sizing: border-box; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--accent); }
 #play .i-pause, #play[aria-pressed="true"] .i-play { display: none; }
 #play[aria-pressed="true"] .i-pause { display: block; }
 
