@@ -45,11 +45,14 @@ export class MapView {
     this.map.addEventListener('pointerup', e => this.up(e))
     this.map.addEventListener('pointercancel', () => (this.press = null))
     this.map.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !this.pinned && !this.press) this.show(null) })
-    this.map.addEventListener('wheel', e => {   // trackpad pinch arrives as ctrl + wheel
-      if (!e.ctrlKey) return
+    // Scroll wheel zooms around the cursor. Trackpad pinch arrives as ctrl + wheel with small deltas.
+    // In the narrow layout the page scrolls, so there only a pinch zooms.
+    this.map.addEventListener('wheel', e => {
+      if (!e.ctrlKey && matchMedia('(max-width: 820px)').matches) return
       e.preventDefault()
+      const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1)
       const r = this.map.getBoundingClientRect()
-      this.zoomAt(Math.exp(-e.deltaY / 100), e.clientX - r.left, e.clientY - r.top)
+      this.zoomAt(Math.exp(-dy / (e.ctrlKey ? 100 : 300)), e.clientX - r.left, e.clientY - r.top)
     }, { passive: false })
     document.addEventListener('pointerdown', e => { if (this.pinned && !this.map.contains(e.target as Node)) this.unpin() })
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && this.pinned) this.unpin() })
