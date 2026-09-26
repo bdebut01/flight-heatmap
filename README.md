@@ -23,7 +23,7 @@ BTS data is a US government work in the public domain. The basemap is derived fr
 npm install
 npm run data      # rebuild public/data/ from data/raw/ (Python 3, standard library only)
 npm run dev       # local server
-npm run build     # static site in dist/
+npm run build     # static site in dist/ (SITE_URL=https://your.host/path/ for link-preview URLs)
 ```
 
 ## Raw data (`data/raw/`, not committed)
