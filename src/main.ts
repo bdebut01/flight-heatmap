@@ -56,22 +56,22 @@ async function boot() {
   const membersOf = (p: Place, value: (a: number) => number) => state.grouping === 'airports' ? [p.key]
     : meta.airports.slice(0, meta.nUS).map((ap, i) => (ap.mk === p.key && value(i) >= 0.5 ? i : -1))
       .filter(i => i >= 0).sort((a, b) => value(b) - value(a))
-  const rowsFrom = (v: Float64Array): [string, number][] =>
-    Array.from(v, (x, b) => [meta.brands[b].n, state.on[b] ? x : 0] as [string, number]).filter(r => r[1] >= 0.5).sort((a, b) => b[1] - a[1])
+  const sharesFrom = (v: Float64Array): TipContent['shares'] =>
+    Array.from(v, (x, b) => ({ name: meta.brands[b].n, code: meta.brands[b].c, v: state.on[b] ? x : 0 })).filter(r => r.v >= 0.5).sort((a, b) => b.v - a.v)
 
   const describe = (p: Place): TipContent => {
     const city = state.grouping === 'cities'
-    let members: number[], rows: [string, number][]
+    let members: number[], rows: TipContent['shares']
     if (routeMode()) {
       const dv = destValues(state.on)
       members = membersOf(p, a => dv.get(a) ?? 0)
-      rows = rowsFrom(routes!.brandTotals(state.origin!.airports, state.month, model.nB, new Set(members)))
+      rows = sharesFrom(routes!.brandTotals(state.origin!.airports, state.month, model.nB, new Set(members)))
     } else {
       const tot = model.airportTotals(state.month, state.on)
       members = membersOf(p, a => tot[a])
       const v = new Float64Array(model.nB)
       for (const a of members) for (const q of model.byAirport[a]) v[model.brandOf(q)] += model.value(q, state.month)
-      rows = rowsFrom(v)
+      rows = sharesFrom(v)
     }
     const n = rows.length
     const codes = members.map(a => meta.airports[a].c)
@@ -81,7 +81,7 @@ async function boot() {
     const what = routeMode() ? 'nonstop flights' : 'departures'
     return {
       title: routeMode() ? `${originLabel()} → ${where}` : where, subtitle, city,
-      total: `${fmt(p.w)} ${what}${routeMode() ? ` (${perDay(p.w)} a day)` : ''} · ${plural(n, 'airline')}`, rows: rows.slice(0, 4), more: Math.max(0, n - 4),
+      headline: `${perDay(p.w)} ${what} a day · ${plural(n, 'airline')}`, shares: rows, total: p.w,
       jump: jumpFrom(city ? 'city' : 'airport', p.key, members[0] ?? p.key),
     }
   }

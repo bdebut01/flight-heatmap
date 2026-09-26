@@ -1,10 +1,15 @@
 import { Heat, rampColor, type Field, type Point } from './heat'
-import { $, el, fmt, svgEl } from './format'
+import { $, el, svgEl } from './format'
 
 export interface Place extends Point { key: number; label: string }
 export interface Anchor { x: number; y: number; label: string }
 export interface TipContent {
-  title: string; subtitle: string; city?: boolean; total: string; rows: [string, number][]; more: number
+  title: string; subtitle: string; city?: boolean
+  /** e.g. "1,069 departures a day · 25 airlines" */
+  headline: string
+  /** airlines busiest first, with this month's departures; drawn as a share bar */
+  shares: { name: string; code: string; v: number }[]
+  total: number
   /** "Show flights from X": a button on the pinned card, a hint while hovering */
   jump?: { label: string; run: () => void }
 }
@@ -14,6 +19,10 @@ const HIT_PX = 16          // hover / click radius in screen pixels
 const ZOOM_STEP = 1.6
 const ZOOM_MAX = 8
 const DRAG_PX = 4          // movement that turns a click into a pan
+const SHARE_TOP = 3        // airlines named in the share bar; the rest are "others"
+// Airlines with a fixed colour everywhere (--c-XX in styles.css); others get neutral greys.
+const COLOURED = new Set(['AA', 'DL', 'UA', 'WN', 'AS', 'B6', 'F9', 'G4'])
+const pct = (x: number) => (x > 0 && x < 0.005 ? '<1%' : `${Math.round(x * 100)}%`)
 const PLANE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 22h20"></path><path d="M6.36 17.4 4 17l-2-4 1.1-.55a2 2 0 0 1 1.8 0l.17.1a2 2 0 0 0 1.8 0L8 12 5 6l.9-.45a2 2 0 0 1 2.09.2l4.02 3a2 2 0 0 0 2.1.2l4.19-2.06a2.41 2.41 0 0 1 1.73-.17L21 7a1.4 1.4 0 0 1 .87 1.99l-.38.76c-.23.46-.6.84-1.07 1.08L7.58 17.2a2 2 0 0 1-1.22.18Z"></path></svg>'
 const CLOSE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>'
 const ARROW = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>'
@@ -186,11 +195,15 @@ export class MapView {
   private hit(e: PointerEvent): Place | null {
     const r = this.map.getBoundingClientRect(), s = this.s
     const mx = this.vx + (e.clientX - r.left) / s, my = this.vy + (e.clientY - r.top) / s
-    let best: Place | null = null, bd = (HIT_PX / s) ** 2
+    const r2 = (HIT_PX / s) ** 2, touch = e.pointerType === 'touch'
+    let best: Place | null = null, bd = r2
     for (const p of this.places) {
       if (p.w < 0.5) continue
       const d = (p.x - mx) ** 2 + (p.y - my) ** 2
-      if (d < bd) { bd = d; best = p }
+      if (d >= r2) continue
+      // a fingertip covers several small airports: take the busiest in reach (zoom in for the others);
+      // a mouse is precise, so it takes the nearest
+      if (touch ? !best || p.w > best.w : d < bd) { bd = d; best = p }
     }
     return best
   }
@@ -280,18 +293,27 @@ export class MapView {
 
   private fillCard(p: Place) {
     const c = this.describe(p), sheet = this.asSheet
-    const shown = sheet ? c.rows.slice(0, 3) : c.rows, more = c.more + (c.rows.length - shown.length)
-    const mx = shown.length ? shown[0][1] : 1
     const title = el('div', { class: c.city ? 'tt-title city' : 'tt-title' })
     title.append(el('b', {}, c.title), el('span', {}, c.subtitle))
-    const total = el('div', { class: 'tt-total' }, c.total)
-    const rows = el('div', { class: 'tt-rows' })
-    for (const [name, v] of shown) {
-      const row = el('div', { class: 'tt-row' }), bar = el('i')
-      bar.style.width = `${Math.max(2, (v / mx) * 100)}%`
-      row.append(el('span', {}, name), bar, el('span', {}, fmt(v)))
-      rows.append(row)
+    const total = el('div', { class: 'tt-total' }, c.headline)
+    // share bar: the top airlines by colour (fixed per airline), then everyone else as "others"
+    const top = c.shares.slice(0, SHARE_TOP), rest = c.total - top.reduce((s, r) => s + r.v, 0)
+    let grey = 0
+    const segs = top.map(r => ({ label: r.name, share: r.v / c.total, colour: COLOURED.has(r.code) ? `var(--c-${r.code})` : `var(--n${++grey})` }))
+    const nOthers = c.shares.length - top.length
+    if (nOthers > 0 && rest > 0) segs.push({ label: `${nOthers} other${nOthers === 1 ? '' : 's'}`, share: rest / c.total, colour: 'var(--others)' })
+    const bar = el('div', { class: 'tt-bar', role: 'img', 'aria-label': segs.map(s => `${s.label} ${pct(s.share)}`).join(', ') })
+    const key = el('div', { class: 'tt-key' })
+    for (const s of segs) {
+      const seg = el('span'); seg.style.width = `${(s.share * 100).toFixed(2)}%`; seg.style.background = s.colour
+      bar.append(seg)
+      const item = el('span', { class: 'tt-key-item' }), sw = el('i')
+      sw.style.background = s.colour
+      item.append(sw, el('span', {}, s.label), el('b', {}, pct(s.share)))
+      key.append(item)
     }
+    const rows = el('div', { class: 'tt-shares' })
+    rows.append(bar, key)
     if (sheet) {
       const head = el('div', { class: 'tt-head' }), text = el('div')
       const close = el('button', { type: 'button', class: 'tt-close', 'aria-label': 'Close' })
@@ -303,7 +325,6 @@ export class MapView {
     this.tip.classList.toggle('sheet', sheet)
     this.tip.setAttribute('role', sheet ? 'dialog' : 'status')
     if (sheet) this.tip.setAttribute('aria-label', `${c.title} ${c.subtitle}`); else this.tip.removeAttribute('aria-label')
-    if (more > 0) this.tip.append(el('div', { class: 'tt-more' }, `+ ${more} more airline${more === 1 ? '' : 's'}`))
     if (c.jump && this.pinned) {
       const b = el('button', { type: 'button', class: 'tt-jump' })
       b.innerHTML = PLANE
