@@ -1,5 +1,5 @@
 import type { Meta } from './data'
-import { $, el, fmt, slug } from './format'
+import { $, el, rate, slug } from './format'
 
 export interface Origin { kind: 'airport' | 'city'; index: number; airports: number[]; code: string; name: string }
 interface Option extends Origin { rank: number; traffic: number; sub: string }
@@ -20,7 +20,8 @@ export class OriginPicker {
   private all: Option[]
   private marketSlug: string[]
 
-  constructor(meta: Meta, traffic: Float64Array, private period: string, private onPick: (o: Origin | null) => void) {
+  /** traffic: departures over the whole period (for ranking); days: its length, to show a daily average */
+  constructor(meta: Meta, traffic: Float64Array, private days: number, private period: string, private onPick: (o: Origin | null) => void) {
     this.marketSlug = meta.markets.map(m => slug(m.n))
     const byMarket = new Map<number, number[]>()
     for (let a = 0; a < meta.nUS; a++) {
@@ -106,11 +107,11 @@ export class OriginPicker {
       const li = el('li', { role: 'option', id: `from-opt-${i}`, class: 'opt', 'aria-selected': String(i === this.active) })
       const text = el('span', { class: 'opt-text' })
       text.append(el('span', {}, o.name), el('small', {}, o.sub))
-      li.append(el('span', { class: 'opt-code' }, o.kind === 'city' ? 'City' : o.code), text, el('span', { class: 'opt-n' }, fmt(o.traffic)))
+      li.append(el('span', { class: 'opt-code' }, o.kind === 'city' ? 'City' : o.code), text, el('span', { class: 'opt-n' }, rate(o.traffic / this.days)))
       li.addEventListener('mousedown', e => { e.preventDefault(); this.set(o) })
       this.list.append(li)
     })
-    if (this.shown.length) this.list.append(el('li', { class: 'opt-foot', role: 'presentation' }, `Departures, ${this.period}`))
+    if (this.shown.length) this.list.append(el('li', { class: 'opt-foot', role: 'presentation' }, `Departures a day, ${this.period}`))
     this.list.hidden = false
     this.input.setAttribute('aria-expanded', 'true')
     this.input.setAttribute('aria-activedescendant', this.active >= 0 ? `from-opt-${this.active}` : '')

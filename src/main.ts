@@ -10,7 +10,7 @@ import { OriginPicker, type Origin } from './origin'
 import { Routes } from './routes'
 import { Sidebar } from './sidebar'
 import { Timeline } from './timeline'
-import { $, el, fmt, monthLabel } from './format'
+import { $, daysIn, el, fmt, monthLabel, rate } from './format'
 
 type Grouping = 'airports' | 'cities'
 
@@ -18,8 +18,6 @@ const store = {
   get(k: string) { try { return localStorage.getItem(k) } catch { return null } },
   set(k: string, v: string) { try { localStorage.setItem(k, v) } catch { /* private mode */ } },
 }
-/** days in a YYYY-MM month (day 0 of the next month is the last day of this one) */
-const daysIn = (ym: string) => new Date(+ym.slice(0, 4), +ym.slice(5), 0).getDate()
 const plural = (n: number, word: string) => `${fmt(n)} ${word}${n === 1 ? '' : 's'}`
 
 async function boot() {
@@ -35,7 +33,10 @@ async function boot() {
   const allOn = new Uint8Array(model.nB).fill(1)
   const shortCity = (s: string) => s.split(',')[0]
   const routeMode = () => !!(state.origin && routes)
-  const perDay = (v: number) => { const d = v / daysIn(meta.months[state.month]); return d >= 10 ? fmt(d) : d.toFixed(1) }
+  // Every count is shown as a daily average: easier to read, and short months don't look like dips.
+  const days = meta.months.map(daysIn)
+  const perDay = (v: number) => rate(v / days[state.month])
+  const daily = (series: ArrayLike<number>) => Float64Array.from(series, (v, m) => v / days[m])
 
   /** Airport values -> map places, grouped into city markets in the Cities view. */
   const toPlaces = (value: (a: number) => number): Place[] => {
@@ -99,13 +100,13 @@ async function boot() {
     toggle(brands, on) { for (const b of brands) state.on[b] = on ? 1 : 0; render() },
     only(brands) { state.on.fill(0); for (const b of brands) state.on[b] = 1; render() },
   })
-  sidebar.setSparklines(model.brandSeries())
+  sidebar.setSparklines(model.brandSeries().map(daily))
   const timeline = new Timeline(meta.months, m => { state.month = m; render() })
 
   // total departures per airport over all months, to rank the origin search
   const traffic = new Float64Array(model.nA)
   for (let m = 0; m < model.M; m++) model.airportTotals(m, allOn).forEach((v, a) => (traffic[a] += v))
-  picker = new OriginPicker(meta, traffic, `${monthLabel(meta.months[0])} – ${monthLabel(meta.months[model.M - 1])}`, async o => {
+  picker = new OriginPicker(meta, traffic, days.reduce((a, b) => a + b, 0), `${monthLabel(meta.months[0])} – ${monthLabel(meta.months[model.M - 1])}`, async o => {
     state.origin = o
     if (o && !routes) {
       $('eyebrow').textContent = 'Loading routes…'
@@ -155,8 +156,9 @@ async function boot() {
     const total = pl.reduce((s, p) => s + p.w, 0) + (rm ? [...destValues(state.on)].filter(([a]) => a >= meta.nUS).reduce((s, [, v]) => s + v, 0) : 0)
     const served = pl.filter(p => p.w >= 0.5).length + extraDest
 
-    sidebar.update(bt, state.on)
-    timeline.update(state.month, series, Math.max(...series), 'departures')
+    sidebar.update(bt, state.on, days[state.month])
+    const perDaySeries = daily(series)
+    timeline.update(state.month, perDaySeries, Math.max(...perDaySeries), 'departures a day')
 
     $('month-label').textContent = ml
     $('eyebrow').textContent = rm ? `Nonstop from ${originLabel()}` : 'Showing'
@@ -170,8 +172,7 @@ async function boot() {
     const all = seriesAll[state.month], share = all > 0 ? total / all : 0
     const pct = share >= 0.9995 ? '100%' : share > 0 && share < 0.001 ? '<0.1%' : `${(share * 100).toFixed(1)}%`
     const stats: [string, string][] = [
-      [fmt(total), 'departures'],
-      ...(rm ? [[perDay(total), 'departures a day'] as [string, string]] : []),
+      [perDay(total), 'departures a day'],
       [pct, rm ? `of ${originLabel()} departures` : 'of all departures'],
       [fmt(served), rm ? 'destinations' : `${state.grouping} served`],
       [String(nOn), nOn === 1 ? 'airline on' : 'airlines on'],
@@ -228,7 +229,7 @@ async function boot() {
     const kids: HTMLElement[] = [el('span', { class: 'abroad-title' }, `Also nonstop abroad · ${list.length}`)]
     for (const [a, v] of shown) {
       const ap = meta.airports[a], chip = el('span', { class: 'chip', title: ap.n })
-      chip.append(el('b', {}, ap.c), el('span', {}, shortCity(ap.ci)), el('span', {}, fmt(v)))
+      chip.append(el('b', {}, ap.c), el('span', {}, shortCity(ap.ci)), el('span', { title: 'departures a day' }, perDay(v)))
       kids.push(chip)
     }
     if (list.length > SHOW) {

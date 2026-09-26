@@ -1,5 +1,5 @@
 import type { Group, Model } from './data'
-import { el, fmt, sparkline } from './format'
+import { el, rate, sparkline } from './format'
 
 const GROUPS: { g: Group; name: string }[] = [
   { g: 'us', name: 'US airlines' },
@@ -86,8 +86,8 @@ export class Sidebar {
     for (const G of this.groups) for (const r of G.rows) r.spark.replaceChildren(sparkline(series[r.b]))
   }
 
-  /** values: this month's totals per brand (all brands); on: enabled mask */
-  update(values: Float64Array, on: Uint8Array) {
+  /** values: this month's departures per brand (all brands); on: enabled mask; shown as a daily average */
+  update(values: Float64Array, on: Uint8Array, days: number) {
     let mx = 0
     for (const v of values) mx = Math.max(mx, v)
     for (const G of this.groups) {
@@ -96,7 +96,7 @@ export class Sidebar {
       const rows = G.rows.filter(r => this.shows(r))
       for (const r of rows) {
         const v = values[r.b], isOn = !!on[r.b]
-        r.val.textContent = v >= 0.5 ? fmt(v) : '—'
+        r.val.textContent = v >= 0.5 ? rate(v / days) : '—'
         const flying = v >= 0.5
         r.meter.hidden = !flying; r.none.hidden = flying
         r.meter.style.width = `${Math.max(1, (v / (mx || 1)) * 100).toFixed(1)}%`
@@ -105,7 +105,7 @@ export class Sidebar {
       const allOn = rows.every(r => on[r.b]), noneOn = rows.every(r => !on[r.b])
       G.box.checked = allOn; G.box.indeterminate = !allOn && !noneOn
       G.state.textContent = allOn ? `${nFlying} airlines` : `${nOn} of ${nFlying} on`
-      G.total.textContent = fmt(total)
+      G.total.textContent = rate(total / days)
     }
   }
 

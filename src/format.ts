@@ -1,5 +1,9 @@
 const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
 export const fmt = (n: number) => nf.format(Math.round(n))
+/** a per-day rate: whole numbers from 10 up, one decimal below */
+export const rate = (v: number) => (v >= 10 ? fmt(v) : v >= 0.05 ? v.toFixed(1) : v > 0 ? '<0.1' : '0')
+/** days in a YYYY-MM month (day 0 of the next month is the last day of this one) */
+export const daysIn = (ym: string) => new Date(+ym.slice(0, 4), +ym.slice(5), 0).getDate()
 /** 'Portland, OR' -> 'portland-or', for readable links */
 export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 

@@ -1,4 +1,4 @@
-import { $, el, fmt, monthLabel, monthName } from './format'
+import { $, el, monthLabel, monthName, rate } from './format'
 
 /** Month bars (the selection's monthly totals), a range slider over them, and play/pause. */
 export class Timeline {
@@ -54,7 +54,7 @@ export class Timeline {
     this.hovered = i
     if (i < 0 || !kids[i]) { this.tip.hidden = true; return }
     kids[i].classList.add('hover')
-    this.tip.textContent = `${monthLabel(this.months[i])} · ${fmt(this.totals[i] ?? 0)} ${this.unit}`
+    this.tip.textContent = `${monthLabel(this.months[i])} · ${rate(this.totals[i] ?? 0)} ${this.unit}`
     this.tip.hidden = false
     // centre on the bar, but keep the label inside the track
     const n = this.months.length, w = this.bars.clientWidth, tw = this.tip.offsetWidth
