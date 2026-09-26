@@ -49,3 +49,16 @@ prints a warning when that happens.
 | `summary.json` | origin airport × airline: monthly departures | at start |
 | `basemap.json` | state outlines as one pre-projected SVG path | at start |
 | `routes.json` | route × airline: monthly departures | by the origin view |
+
+## Size
+
+| Download | gzip | brotli |
+|---|---|---|
+| First load: page, code, fonts, `meta` + `summary` + `basemap` | 254 KB | 221 KB |
+| `routes.json`, fetched when an origin is picked | 407 KB | 305 KB |
+
+The whole `dist/` is about 2.7 MB on disk (19 files); the transfer sizes above assume a host that compresses, as
+GitHub Pages (gzip) and Cloudflare or Netlify (brotli) do. It stays small because the browser only gets
+departures (no seats or other fields) as one route table plus an airport summary, stored as compact
+18-month arrays that the app sums itself, and because the geography is pre-projected and simplified at
+build time and the heat is drawn in the browser, so no map library or map tiles ship.
