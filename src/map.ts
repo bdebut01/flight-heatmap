@@ -41,7 +41,9 @@ export class MapView {
   private k = 1                          // zoom
   private vx = 0                         // top-left of the view, in map units
   private vy = 0
-  private press: { x: number; y: number; vx: number; vy: number; dragged: boolean } | null = null
+  private press: { x: number; y: number; vx: number; vy: number; lastY: number; dragged: boolean } | null = null
+  private touches = new Map<number, { x: number; y: number }>()   // fingers on the map
+  private pinch: { d: number; mx: number; my: number } | null = null   // spread and midpoint (map px) last frame
 
   constructor(private W: number, private H: number, basemap: string, private describe: (p: Place) => TipContent) {
     $('land').setAttribute('d', basemap)
@@ -49,7 +51,9 @@ export class MapView {
     this.map.addEventListener('pointerdown', e => this.down(e))
     this.map.addEventListener('pointermove', e => this.move(e))
     this.map.addEventListener('pointerup', e => this.up(e))
-    this.map.addEventListener('pointercancel', () => (this.press = null))
+    this.map.addEventListener('pointercancel', e => this.lift(e))
+    // Safari's own pinch events: the map handles pinching itself
+    this.map.addEventListener('gesturestart', e => e.preventDefault())
     this.map.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !this.pinned && !this.press) this.show(null) })
     // Scroll wheel zooms around the cursor. Trackpad pinch arrives as ctrl + wheel with small deltas.
     // In the narrow layout the page scrolls, so there only a pinch zooms.
@@ -193,18 +197,54 @@ export class MapView {
 
   private down(e: PointerEvent) {
     if (this.onControl(e) || e.button !== 0) return
-    this.press = { x: e.clientX, y: e.clientY, vx: this.vx, vy: this.vy, dragged: false }
+    if (e.pointerType === 'touch') {
+      this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      this.capture(e.pointerId)
+      if (this.touches.size === 2) { this.press = null; this.pinch = this.spread(); return }   // two fingers: pinch
+      if (this.touches.size > 2) return
+    }
+    this.press = { x: e.clientX, y: e.clientY, vx: this.vx, vy: this.vy, lastY: e.clientY, dragged: false }
   }
   private move(e: PointerEvent) {
+    if (this.touches.has(e.pointerId)) this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (this.pinch && this.touches.size >= 2) {
+      // zoom by the change in finger spread around the midpoint, and pan with the midpoint
+      const now = this.spread(), prev = this.pinch
+      const mx = this.vx + prev.mx / this.s, my = this.vy + prev.my / this.s   // map point under last midpoint
+      this.k = Math.min(ZOOM_MAX, Math.max(1, this.k * (now.d / (prev.d || 1))))
+      this.vx = mx - now.mx / this.s; this.vy = my - now.my / this.s
+      this.pinch = now; this.view(); return
+    }
     const p = this.press
     if (p) {
       const dx = e.clientX - p.x, dy = e.clientY - p.y
-      if (!p.dragged && Math.hypot(dx, dy) > DRAG_PX && this.k > 1) { p.dragged = true; this.map.setPointerCapture(e.pointerId) }
-      if (p.dragged) { this.vx = p.vx - dx / this.s; this.vy = p.vy - dy / this.s; this.view(); return }
+      if (!p.dragged && Math.hypot(dx, dy) > DRAG_PX) {
+        p.dragged = true
+        if (e.pointerType !== 'touch' && this.k > 1) this.capture(e.pointerId)
+      }
+      if (p.dragged && this.k > 1) { this.vx = p.vx - dx / this.s; this.vy = p.vy - dy / this.s; this.view(); return }
+      // not zoomed: a finger drag scrolls the page (the map takes all touch gestures, so do it here)
+      if (p.dragged && e.pointerType === 'touch') { window.scrollBy(0, p.lastY - e.clientY); p.lastY = e.clientY; return }
     }
     if (e.pointerType === 'mouse' && !this.pinned && !this.onControl(e)) this.show(this.hit(e))
   }
+  /** keep receiving a pointer's moves outside the map; a pointer the browser no longer tracks is ignored */
+  private capture(id: number) { try { this.map.setPointerCapture(id) } catch { /* not an active pointer */ } }
+  /** finger spread and midpoint, relative to the map */
+  private spread() {
+    const [a, b] = [...this.touches.values()], r = this.map.getBoundingClientRect()
+    return { d: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2 - r.left, my: (a.y + b.y) / 2 - r.top }
+  }
+  /** a finger or pointer leaves: ending a pinch never counts as a tap */
+  private lift(e: PointerEvent) {
+    const wasPinch = !!this.pinch
+    this.touches.delete(e.pointerId)
+    if (this.touches.size < 2) this.pinch = null
+    if (wasPinch || e.type === 'pointercancel') { this.press = null; return true }
+    return false
+  }
   private up(e: PointerEvent) {
+    if (this.lift(e)) return
     const p = this.press; this.press = null
     if (!p || p.dragged || this.onControl(e)) return
     const target = this.hit(e)
