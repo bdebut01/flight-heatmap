@@ -261,4 +261,16 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; a
   .month { font-size: 22px; }
   .legend { flex-wrap: wrap; }
   .tooltip { width: 220px; }
+  /* a pinned card docks to the bottom of the screen as a sheet */
+  .tooltip.sheet { position: fixed; left: 0; right: 0; bottom: 0; top: auto; width: auto; z-index: 20; gap: 10px;
+    padding: 8px 16px calc(20px + env(safe-area-inset-bottom)); border: 0; border-top: 1px solid var(--line);
+    border-radius: 16px 16px 0 0; box-shadow: 0 -8px 24px rgba(20, 20, 19, 0.16); }
+  .tooltip.sheet::before { content: ''; align-self: center; width: 36px; height: 4px; border-radius: 2px; background: var(--bar); }
+  .tt-head { display: flex; align-items: flex-start; gap: 8px; }
+  .tt-head > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .tooltip.sheet .tt-title b { font-size: 17px; }
+  .tooltip.sheet .tt-title span, .tooltip.sheet .tt-total { font-size: 14px; }
+  .tooltip.sheet .tt-row { grid-template-columns: 110px minmax(0, 1fr) 60px; min-height: 28px; font-size: 13px; }
+  .tooltip.sheet .tt-jump { min-height: 44px; font-size: 14px; border-radius: 10px; }
+  .tt-close { width: 44px; height: 44px; margin: -10px -10px 0 0; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 22px; background: transparent; color: var(--ink-2); cursor: pointer; }
 }

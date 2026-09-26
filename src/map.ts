@@ -15,6 +15,7 @@ const ZOOM_STEP = 1.6
 const ZOOM_MAX = 8
 const DRAG_PX = 4          // movement that turns a click into a pan
 const PLANE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 22h20"></path><path d="M6.36 17.4 4 17l-2-4 1.1-.55a2 2 0 0 1 1.8 0l.17.1a2 2 0 0 0 1.8 0L8 12 5 6l.9-.45a2 2 0 0 1 2.09.2l4.02 3a2 2 0 0 0 2.1.2l4.19-2.06a2.41 2.41 0 0 1 1.73-.17L21 7a1.4 1.4 0 0 1 .87 1.99l-.38.76c-.23.46-.6.84-1.07 1.08L7.58 17.2a2 2 0 0 1-1.22.18Z"></path></svg>'
+const CLOSE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>'
 const ARROW = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>'
 
 /**
@@ -274,20 +275,35 @@ export class MapView {
     this.shown = p; this.fillCard(p)
   }
 
+  /** phones: a pinned card becomes a bottom sheet (full width, top 3 airlines, a close button) */
+  private get asSheet() { return this.pinned && matchMedia('(max-width: 820px)').matches }
+
   private fillCard(p: Place) {
-    const c = this.describe(p)
-    const mx = c.rows.length ? c.rows[0][1] : 1
+    const c = this.describe(p), sheet = this.asSheet
+    const shown = sheet ? c.rows.slice(0, 3) : c.rows, more = c.more + (c.rows.length - shown.length)
+    const mx = shown.length ? shown[0][1] : 1
     const title = el('div', { class: c.city ? 'tt-title city' : 'tt-title' })
     title.append(el('b', {}, c.title), el('span', {}, c.subtitle))
+    const total = el('div', { class: 'tt-total' }, c.total)
     const rows = el('div', { class: 'tt-rows' })
-    for (const [name, v] of c.rows) {
+    for (const [name, v] of shown) {
       const row = el('div', { class: 'tt-row' }), bar = el('i')
       bar.style.width = `${Math.max(2, (v / mx) * 100)}%`
       row.append(el('span', {}, name), bar, el('span', {}, fmt(v)))
       rows.append(row)
     }
-    this.tip.replaceChildren(title, el('div', { class: 'tt-total' }, c.total), rows)
-    if (c.more > 0) this.tip.append(el('div', { class: 'tt-more' }, `+ ${c.more} more airline${c.more === 1 ? '' : 's'}`))
+    if (sheet) {
+      const head = el('div', { class: 'tt-head' }), text = el('div')
+      const close = el('button', { type: 'button', class: 'tt-close', 'aria-label': 'Close' })
+      close.innerHTML = CLOSE
+      close.addEventListener('click', () => this.unpin())
+      text.append(title, total); head.append(text, close)
+      this.tip.replaceChildren(head, rows)
+    } else this.tip.replaceChildren(title, total, rows)
+    this.tip.classList.toggle('sheet', sheet)
+    this.tip.setAttribute('role', sheet ? 'dialog' : 'status')
+    if (sheet) this.tip.setAttribute('aria-label', `${c.title} ${c.subtitle}`); else this.tip.removeAttribute('aria-label')
+    if (more > 0) this.tip.append(el('div', { class: 'tt-more' }, `+ ${more} more airline${more === 1 ? '' : 's'}`))
     if (c.jump && this.pinned) {
       const b = el('button', { type: 'button', class: 'tt-jump' })
       b.innerHTML = PLANE
@@ -307,6 +323,7 @@ export class MapView {
   private placeCard() {
     const p = this.shown
     if (!p || this.tip.hidden) return
+    if (this.tip.classList.contains('sheet')) { this.tip.style.left = this.tip.style.top = ''; return }   // CSS docks it
     const px = this.sx(p.x), py = this.sy(p.y)
     const tw = this.tip.offsetWidth, th = this.tip.offsetHeight, W = this.map.clientWidth, H = this.map.clientHeight
     const left = px + 18 + tw > W ? px - 18 - tw : px + 18
