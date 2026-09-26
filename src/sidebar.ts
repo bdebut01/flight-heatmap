@@ -92,11 +92,10 @@ export class Sidebar {
     for (const v of values) mx = Math.max(mx, v)
     for (const G of this.groups) {
       let nOn = 0, nFlying = 0, total = 0
+      for (const r of G.rows) { r.box.checked = !!on[r.b]; r.label.classList.toggle('off', !on[r.b]) }   // hidden rows too
       const rows = G.rows.filter(r => this.shows(r))
       for (const r of rows) {
         const v = values[r.b], isOn = !!on[r.b]
-        r.box.checked = isOn
-        r.label.classList.toggle('off', !isOn)
         r.val.textContent = v >= 0.5 ? fmt(v) : '—'
         const flying = v >= 0.5
         r.meter.hidden = !flying; r.none.hidden = flying

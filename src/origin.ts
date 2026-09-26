@@ -1,5 +1,5 @@
 import type { Meta } from './data'
-import { $, el, fmt } from './format'
+import { $, el, fmt, slug } from './format'
 
 export interface Origin { kind: 'airport' | 'city'; index: number; airports: number[]; code: string; name: string }
 interface Option extends Origin { rank: number; traffic: number; sub: string }
@@ -18,8 +18,10 @@ export class OriginPicker {
   private shown: Option[] = []
   private active = -1
   private all: Option[]
+  private marketSlug: string[]
 
   constructor(meta: Meta, traffic: Float64Array, private period: string, private onPick: (o: Origin | null) => void) {
+    this.marketSlug = meta.markets.map(m => slug(m.n))
     const byMarket = new Map<number, number[]>()
     for (let a = 0; a < meta.nUS; a++) {
       if (traffic[a] < CITY_MIN) continue   // a metro option needs two or more airports with real service
@@ -50,6 +52,14 @@ export class OriginPicker {
   find(kind: 'airport' | 'city', index: number, fallbackAirport: number): Origin | null {
     return this.all.find(o => o.kind === kind && o.index === index)
       ?? this.all.find(o => o.kind === 'airport' && o.index === fallbackAirport) ?? null
+  }
+
+  /** link key for an origin: the airport code, or the metro's slug */
+  keyOf(o: Origin) { return o.kind === 'city' ? this.marketSlug[o.index] : o.code }
+  byKey(key: string): Origin | null {
+    const k = key.toLowerCase()
+    return this.all.find(o => o.kind === 'airport' && o.code.toLowerCase() === k)
+      ?? this.all.find(o => o.kind === 'city' && this.marketSlug[o.index] === k) ?? null
   }
 
   set(o: Origin | null) {

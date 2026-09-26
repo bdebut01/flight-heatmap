@@ -181,6 +181,41 @@ async function boot() {
       const cur = String(state[seg.dataset.key as 'grouping'])
       seg.querySelectorAll<HTMLButtonElement>('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === cur)))
     })
+    writeLink()
+  }
+
+  // ---- the view lives in the link (#from=DEN&month=2026-03&show=cities&only=UA,WN) so it can be shared
+  // and survives a reload. replaceState keeps every tweak out of the back-button history.
+  function writeLink() {
+    const parts: string[] = []
+    if (state.origin) parts.push(`from=${encodeURIComponent(picker.keyOf(state.origin))}`)
+    if (state.month !== model.M - 1) parts.push(`month=${meta.months[state.month]}`)
+    if (state.grouping === 'cities') parts.push('show=cities')
+    const on = meta.brands.filter((_, b) => state.on[b]).map(b => b.c)
+    const off = meta.brands.filter((_, b) => !state.on[b]).map(b => b.c)
+    if (off.length) parts.push(on.length <= off.length ? `only=${on.join(',')}` : `off=${off.join(',')}`)
+    const hash = parts.join('&')
+    if (location.hash.slice(1) !== hash) history.replaceState(null, '', hash ? `#${hash}` : location.pathname + location.search)
+  }
+  function readLink() {
+    const p = new URLSearchParams(location.hash.slice(1))
+    const m = meta.months.indexOf(p.get('month') ?? '')
+    state.month = m >= 0 ? m : model.M - 1
+    state.grouping = p.get('show') === 'cities' ? 'cities' : 'airports'
+    // airline codes; a list with no codes we know is ignored rather than switching everything off
+    const known = new Set(meta.brands.map(b => b.c))
+    const codes = (k: string) => new Set((p.get(k) ?? '').split(',').filter(c => known.has(c)))
+    const only = codes('only'), off = codes('off')
+    if (only.size) meta.brands.forEach((b, i) => (state.on[i] = only.has(b.c) ? 1 : 0))
+    else if (off.size) meta.brands.forEach((b, i) => (state.on[i] = off.has(b.c) ? 0 : 1))
+    else state.on.fill(1)
+    const from = p.get('from'), o = from ? picker.byKey(from) : null
+    if (o && !(state.origin && picker.keyOf(state.origin) === picker.keyOf(o))) {
+      if (!routes) render()   // draw the heatmap while the routes load
+      picker.set(o)           // renders again once they're in
+    }
+    else if (!o && state.origin) picker.set(null)
+    else render()
   }
 
   // chips for nonstop destinations outside the US; the first few, then an expander
@@ -235,12 +270,13 @@ async function boot() {
   setSidebar(store.get('sidebar') !== 'closed')
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render)
 
-  render()
+  readLink()
+  addEventListener('hashchange', readLink)   // a pasted or edited link
   map.fit()
   $('loading').hidden = true
 }
 
 boot().catch(err => {
   console.error(err)
-  $('loading').textContent = 'Could not load the flight data. Run `npm run data` to build it, then reload.'
+  $('loading').textContent = 'Couldn’t load the flight data. Check your connection and reload the page.'
 })

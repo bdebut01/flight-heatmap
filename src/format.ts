@@ -1,5 +1,7 @@
 const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
 export const fmt = (n: number) => nf.format(Math.round(n))
+/** 'Portland, OR' -> 'portland-or', for readable links */
+export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
 const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 export const monthName = (ym: string) => MN[+ym.slice(5) - 1]
