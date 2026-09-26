@@ -6,3 +6,7 @@ dist/
 .DS_Store
 __pycache__/
 .claude/
+
+# local settings, e.g. SITE_URL for link previews (kept out of the public repo)
+.env.local
+*.local

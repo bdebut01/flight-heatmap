@@ -1,10 +1,15 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 
-// Link previews need absolute URLs. Set SITE_URL (with a trailing slash) when building for another host.
-const SITE_URL = process.env.SITE_URL ?? 'https://bdebut01.github.io/flight-heatmap/'
-
-// Relative base so the build works from any static host path (e.g. GitHub Pages project sites).
-export default defineConfig({
-  base: './',
-  plugins: [{ name: 'site-url', transformIndexHtml: html => html.replaceAll('__SITE_URL__', SITE_URL) }],
+// Link previews need absolute URLs. SITE_URL comes from the environment or a gitignored .env.local;
+// without it the build leaves those tags out rather than guess the address.
+export default defineConfig(({ mode }) => {
+  const raw = loadEnv(mode, process.cwd(), '').SITE_URL ?? ''
+  const site = raw && !raw.endsWith('/') ? `${raw}/` : raw
+  return {
+    base: './',   // relative, so the build works from any static host path
+    plugins: [{
+      name: 'site-url',
+      transformIndexHtml: (html: string) => site ? html.replaceAll('__SITE_URL__', site) : html.replace(/^.*__SITE_URL__.*\n/gm, ''),
+    }],
+  }
 })
