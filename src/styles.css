@@ -247,7 +247,8 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; a
   .narrow-only { display: block; }
   .wide-only { display: none; }
   .app, .app[data-sidebar="closed"] { display: flex; flex-direction: column; height: auto; min-height: 100vh; }
-  .main { order: 1; padding: 16px; gap: 12px; }
+  .main { order: 1; padding: 16px; gap: 12px; overflow: visible; }
+  .map-wrap { min-height: 0; }   /* the page scrolls here; no reserved height around the map */
   .side { order: 2; overflow: visible; border-right: 0; border-top: 1px solid var(--line); }
   .side > .sidebar, .app[data-sidebar="closed"] .side > .sidebar { position: static; width: auto; opacity: 1; visibility: visible; transition: none; }
   .sidebar { padding: 20px 16px; overflow: visible; }
